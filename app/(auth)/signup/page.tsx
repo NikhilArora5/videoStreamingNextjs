@@ -5,7 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SignupFormData, signupSchema } from "@/app/schemas/signUpSchema";
 import { toast } from "react-hot-toast";
-import { Signup } from "@/app/ApiService/Auth";
+import { Signup } from "@/app/apiService/Auth";
 import { useRouter } from "next/navigation";
 
 const SignupForm: React.FC = () => {

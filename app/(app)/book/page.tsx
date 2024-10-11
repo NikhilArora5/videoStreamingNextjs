@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { bookSchema, BookFormData } from '@/app/schemas/bookSchema.'; // Assuming the schema is in a separate file
-import { createBook } from '@/app/ApiService/book';
+import { createBook } from '@/app/apiService/book';
 import toast from 'react-hot-toast';
 
 const CreateBookForm: React.FC = () => {
