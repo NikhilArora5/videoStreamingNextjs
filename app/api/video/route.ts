@@ -9,7 +9,7 @@ import { badRequest, successResponseWithMessage } from "@/app/helpers/apiRespons
 import { validationVideoSchema, videoSchema } from "@/app/schemas/videoSchema";
 import { ReqBodyValidationresponse, validateBodyData } from "@/app/middleware/requestBodyValiation";
 import AWS from "aws-sdk";
-import { PassThrough } from "stream"; // Impor
+import { PassThrough } from "stream"; // Importance
 
 // Configure AWS SDK
 const s3 = new AWS.S3({
@@ -223,11 +223,11 @@ async function uploadFileToLocal(file: File) {
   const uploadDir = path.join(process.cwd(), "uploads");
   const fileName = `${Date.now()}_${file.name}`;
   const filePath = path.join(uploadDir, fileName);
-  
+
   fs.mkdirSync(uploadDir, { recursive: true });
-  
+
   const fileStream = fs.createWriteStream(filePath);
-  
+
   const readableStream = file.stream();
   const reader = readableStream.getReader();
   let result;
@@ -245,13 +245,27 @@ async function uploadFileToLocal(file: File) {
 
 async function uploadFileToS3(file: File) {
   const fileName = `${Date.now()}_${file.name}`;
+  const chunks: Uint8Array[] = [];
+
+  const readableStream = file.stream();
+  const reader = readableStream.getReader();
+  let result;
+
+  while (!(result = await reader.read()).done) {
+    const chunk = result.value;
+    chunks.push(chunk);
+
+  }
+  const buffer = Buffer.concat(chunks);
+
+
 
   const s3Params = {
     Bucket: process.env.S3_BUCKET_NAME!,
     Key: `uploads/${fileName}`,
-    Body: file.stream(), // Directly stream the file to S3
+    Body: buffer, // Directly stream the file to S3
     ContentType: file.type,
-    ACL: 'public-read', // Optional: Set the file permissions
+    // ACL: 'public-read', // Optional: Set the file permissions
   };
 
   await s3.upload(s3Params).promise();
@@ -261,7 +275,7 @@ async function uploadFileToS3(file: File) {
 export async function POST(request: NextRequest) {
   try {
     const db = await connect();
-    
+
     // Parse the incoming form data
     const formData = await request.formData();
     const formPayload = Object.fromEntries(formData);
@@ -277,12 +291,12 @@ export async function POST(request: NextRequest) {
     if (!(image instanceof File) || !(video instanceof File)) {
       return badRequest(NextResponse, "No valid files received")
     }
-
+    console.log("image", image)
     // Upload files concurrently
     await Promise.all([
       uploadFileToLocal(image),
-      uploadFileToLocal(video),
-      // uploadFileToS3(image),
+      // uploadFileToLocal(video),
+      uploadFileToS3(image),
       // uploadFileToS3(video),
     ]);
 
