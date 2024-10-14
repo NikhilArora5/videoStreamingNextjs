@@ -4,6 +4,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { uploadVideo } from '@/app/apiService/video';
 
 const videoSchema = z.object({
   title: z.string({
@@ -18,15 +19,13 @@ const videoSchema = z.object({
 
   // Require image file
   image: z
-    .instanceof(FileList)
-    .refine((files) => files.length > 0, {
+    .custom<FileList>((files) => files instanceof FileList && files.length > 0, {
       message: "Thumbnail image is required",
     }),
 
   // Require video file
   video: z
-    .instanceof(FileList)
-    .refine((files) => files.length > 0, {
+    .custom<FileList>((files) => files instanceof FileList && files.length > 0, {
       message: "Video file is required",
     }),
 });
@@ -38,7 +37,7 @@ function VideoForm() {
     resolver: zodResolver(videoSchema),
   });
 
-  const onSubmit = (data: VideoFormData) => {
+  const onSubmit = async(data: VideoFormData) => {
     const formData = new FormData();
     console.log("data",data)
     formData.append('title', data.title);
@@ -47,6 +46,14 @@ function VideoForm() {
     formData.append('video', data.video[0]);  // Access the file object
 
     console.log('FormData:', formData);
+
+    try {
+
+        const res=await uploadVideo(formData)
+        
+    } catch (error) {
+        
+    }
     // Handle form submission
   };
 
