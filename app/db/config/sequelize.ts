@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const hostName = process.env.PGHOST!;
+console.log("hostname",hostName)
 const userName = process.env.PGUSER!;
 const password = process.env.PGPASSWORD!;
 const database = process.env.PGDATABASE!;
@@ -13,7 +14,7 @@ const sslRequire = 'true'; // Better to read from env
 
 const sequelize = new Sequelize(database, userName, password, {
   host: hostName,
-  dialect: dialect,
+  dialect: dialect || 'postgres',
   dialectModule: pg,
   dialectOptions: sslRequire
     ? {

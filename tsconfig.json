@@ -14,6 +14,8 @@
     "incremental": true,
     "noUnusedLocals": false,  // Add this to prevent unused variable warnings
     "noUnusedParameters": false  ,
+    // "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
     "plugins": [
       {
         "name": "next"
@@ -23,6 +25,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/db/config/config.js", "app/db/migrations/20241015082016-add_uuid_to_video.js"],
   "exclude": ["node_modules"]
 }

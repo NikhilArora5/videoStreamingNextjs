@@ -7,11 +7,12 @@ export interface VideoAttributes {
   temp_bucket_url?: string; // Optional if you want to allow null values
   play_back_url?: string; // Optional if you want to allow null values
   description?: string; // Optional if you want to allow null values
-  image?: string; // Optional if you want to allow null values
+  image?: string; // Optional if you want to allow null values,
+  uuid: string
 }
 
 // Define the instance type that includes all attributes and methods
-export interface VideoInstance extends Model<VideoAttributes>, VideoAttributes {}
+export interface VideoInstance extends Model<VideoAttributes>, VideoAttributes { }
 
 export class Video extends Model<VideoAttributes> implements VideoAttributes {
   public id!: number;
@@ -20,6 +21,7 @@ export class Video extends Model<VideoAttributes> implements VideoAttributes {
   public play_back_url!: string;
   public description!: string; // Optional if you want to allow null values
   public image!: string; // Optional if you want to allow null values
+  public uuid!: string
 
   // Timestamps
   public readonly createdAt!: Date;
@@ -28,7 +30,7 @@ export class Video extends Model<VideoAttributes> implements VideoAttributes {
 }
 // Initialize the Video model
 export const initVideoModel = (sequelize: Sequelize) => {
-   Video.init(
+  Video.init(
     {
       title: {
         type: DataTypes.STRING,
@@ -50,6 +52,13 @@ export const initVideoModel = (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: true, // Allow null if desired
       },
+
+      uuid: {
+        allowNull: false,
+        primaryKey: false,
+        type: DataTypes.UUID,
+        defaultValue: Sequelize.literal('uuid_generate_v4()'),
+      }
     },
     {
       sequelize,
