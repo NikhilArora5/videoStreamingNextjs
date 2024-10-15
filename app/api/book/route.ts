@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         console.log("user from authMiddleware", user)
         if (!success) return badRequest(NextResponse, message || "Not authorized")
 
-        const books = await db.book.find()
+        const books = await db.book.findAll()
         console.log(books, "saveBook");
 
         return successResponseWithData(NextResponse, "Book fetched successfully", books)

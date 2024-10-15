@@ -1,10 +1,11 @@
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { uploadVideo } from '@/app/apiService/video';
+import Loader from '../global/loader';
 
 const videoSchema = z.object({
   title: z.string({
@@ -36,7 +37,7 @@ function VideoForm() {
   const { register, handleSubmit, formState: { errors } } = useForm<VideoFormData>({
     resolver: zodResolver(videoSchema),
   });
-
+const [loading,setLoading]=useState(false)
   const onSubmit = async(data: VideoFormData) => {
     const formData = new FormData();
     console.log("data",data)
@@ -48,11 +49,14 @@ function VideoForm() {
     console.log('FormData:', formData);
 
     try {
+      setLoading(true)
 
         const res=await uploadVideo(formData)
         
     } catch (error) {
         
+    }finally{
+      setLoading(false)
     }
     // Handle form submission
   };
@@ -112,7 +116,7 @@ function VideoForm() {
           type="submit"
           className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500"
         >
-          Upload Video
+         {loading?<Loader message='Uploading'></Loader>:"Upload Video"} 
         </button>
       </form>
     </div>
