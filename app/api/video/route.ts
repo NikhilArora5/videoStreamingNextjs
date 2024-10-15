@@ -13,8 +13,10 @@ import { PassThrough } from "stream"; // Importance
 
 import QencodeApiClient from "qencode-api"
 import { v4 as uuidv4 } from 'uuid';
+import { VideoAttributes } from "@/app/db/models/video";
+import { where } from "sequelize";
 const apiKey = process.env.QENCOD_API_KEY;
-
+const db = connect();
 // Configure AWS SDK
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION, // e.g., "us-west-2"
@@ -43,9 +45,9 @@ const saveFile = async (file: formidable.File) => {
 
 
 
-async function uploadFileToLocal(file: File) {
+async function uploadFileToLocal(file: File, uuid: string) {
   const uploadDir = path.join(process.cwd(), "uploads");
-  const fileName = `${Date.now()}_${file.name}`;
+  const fileName = `${uuid}_${file.name}`;
   const filePath = path.join(uploadDir, fileName);
 
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -67,8 +69,8 @@ async function uploadFileToLocal(file: File) {
   return filePath; // Return the local file path
 }
 
-async function uploadFileToS3(file: File) {
-  const fileName = `${Date.now()}_${file.name}`;
+async function uploadFileToS3(file: File, uuid: string) {
+
   const chunks: Uint8Array[] = [];
 
   const readableStream = file.stream();
@@ -82,11 +84,13 @@ async function uploadFileToS3(file: File) {
   }
   const buffer = Buffer.concat(chunks);
 
+  const file_key = generateFileKey(uuid, file.name)
+
 
 
   const s3Params = {
     Bucket: process.env.S3_BUCKET_NAME!,
-    Key: `uploads/${fileName}`,
+    Key: file_key,
     Body: buffer, // Directly stream the file to S3
     ContentType: file.type,
     // ACL: '', // Optional: Set the file permissions
@@ -100,14 +104,21 @@ function generateS3Url(objectKey: string) {
   return `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${objectKey}`;
 }
 
-const transcodeVideo = async (key: string) => {
+function generateFileKey(uuid: string, fileName: string) {
+
+
+  return `uploads/${uuid}_${fileName}`;
+}
+
+const transcodeVideo = async (key: string, uuid: string) => {
 
   try {
-    console.log("key Received", key)
-    const sourceUrl = generateS3Url(key);
+
+    // const sourceUrl = generateS3Url(key);
+    const sourceUrl = "https://testvideoplayer.s3.us-east-2.amazonaws.com/uploads/003a0603-a805-4397-9973-111b185236dd_Lombard_street__the_crookedest_street___SaveYouTube_com_.mp4"
     console.log("sourceUrl", sourceUrl)
     const qencodeApiClient = await new QencodeApiClient(apiKey);
-    console.log("runningTask()", qencodeApiClient)
+
     const destinationObject = {
       "url": `s3://s3.${process.env.AWS_REGION}.amazonaws.com/${process.env.S3_BUCKET_NAME}/transcoded/${uuidv4()}`,
       "key": process.env.AWS_ACCESS_KEY_ID,
@@ -115,16 +126,17 @@ const transcodeVideo = async (key: string) => {
       // "permissions": "public-read",
       // "storage_class": "REDUCED_REDUNDANCY"
     }
-    console.log("destinationObject", destinationObject)
+
 
 
     let transcodingParams = {
       source: sourceUrl,
+      callback_url: "https://5802-112-196-2-227.ngrok-free.app/api/webhook",
       format: [
         {
           output: "advanced_hls",
           optimize_bitrate: 1,  // Enable bitrate optimization
-          destination: destinationObject,
+          // destination: destinationObject,
           stream: [
             {
               size: "3840x2160",   // 4K resolution
@@ -175,13 +187,19 @@ const transcodeVideo = async (key: string) => {
 
 
     let task = await qencodeApiClient.CreateTask();
-    console.log("Task", task)
+    const token = task?.taskToken
+    console.log("task",)
 
     const res = await task.StartCustom(transcodingParams);
 
 
 
-    console.log("res", res)
+
+    return { job_id: token }
+
+
+
+
   } catch (error: any) {
     throw new Error(error)
   }
@@ -190,7 +208,7 @@ const transcodeVideo = async (key: string) => {
 
 export async function POST(request: NextRequest) {
   try {
-    const db = await connect();
+
 
     // Parse the incoming form data
     const formData = await request.formData();
@@ -208,28 +226,37 @@ export async function POST(request: NextRequest) {
       return badRequest(NextResponse, "No valid files received")
     }
     console.log("image", image)
-    const videoObj = {
-      title: "adad",
-      description: "ada",
-      image: "",
-      video: ""
-
+    const formBody = JSON.parse(JSON.stringify(formPayload))
+    console.log("formBody", formBody)
+    const videoObj: VideoAttributes = {
+      title: formBody?.title,
+      description: formBody?.description
     }
 
-   const savedVideo= await db.video.create(videoObj)
-   const videos= await db.video.findAll()
-   console.log("videos", videos)
-  //  console.log("savedVideo",savedVideo.id)
+    const savedVideo = await db.video.create(videoObj)
+    const video_uuid = savedVideo.uuid
+
+    //  console.log("savedVideo",savedVideo.id)
     // Upload files concurrently
     await Promise.all([
-      // uploadFileToLocal(image),
-      // uploadFileToLocal(video),
-      // uploadFileToS3(image),
-      // uploadFileToS3(video),
+      uploadFileToLocal(image, video_uuid),
+      uploadFileToLocal(video, video_uuid),
+      // uploadFileToS3(image, video_uuid),
+      // uploadFileToS3(video, video_uuid),
     ]);
-    const fileName = `${Date.now()}_${video.name}`;
-    const objectKey = `uploads/${fileName}`
-    // await Promise.all([transcodeVideo(objectKey)])
+    const image_s3_key = generateFileKey(video_uuid, image.name)
+    const video_file_key = generateFileKey(video_uuid, video.name)
+    const sourceUrl = generateS3Url(video_file_key);
+
+    
+    // await Promise.all([transcodeVideo(file_key, video_uuid)])
+
+    const {job_id} = await transcodeVideo(video_file_key, video_uuid)
+
+    await db.video.update({ temp_bucket_url: video_file_key, image: image_s3_key ,job_id, is_uploaded:true }, { where: { uuid: video_uuid } })
+
+
+
 
 
 
